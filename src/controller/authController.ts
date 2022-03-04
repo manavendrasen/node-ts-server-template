@@ -89,11 +89,22 @@ export const getMe = asyncHandler(
 //@route		GET /api/v1/auth/logout
 //@access		Private
 export const logout = asyncHandler(
-  async (req: Request, res: Response, next: NextFunction) => {
-    res.cookie("token", "none", {
+  async (req: IUserAuthInfoRequest, res: Response, next: NextFunction) => {
+    res.cookie("access_token", "none", {
       expires: new Date(Date.now() + 10 * 1000),
       httpOnly: true,
     });
+
+    res.cookie("refresh_token", "none", {
+      expires: new Date(Date.now() + 10 * 1000),
+      httpOnly: true,
+    });
+
+    if (req.user && req.user.id) {
+      const redisClient = await connectRedis();
+      await redisClient.del(`${req.user.id}`);
+      await clientClose();
+    }
 
     res.status(200).json({
       success: true,
