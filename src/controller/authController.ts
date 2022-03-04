@@ -9,6 +9,7 @@ import {
   generateAccessToken,
   generateRefreshToken,
 } from "../utils/generateToken";
+import { connectRedis, clientClose } from "../config/connectRedis";
 
 //@desc		Login user
 //@route		POST /api/v1/auth/login
@@ -42,7 +43,7 @@ export const login = asyncHandler(
       return next(new ErrorResponse("Invalid credentials", 401));
     }
 
-    sendTokenResponse(user, 200, res);
+    await sendTokenResponse(user, 200, res);
   }
 );
 
@@ -68,7 +69,7 @@ export const register = asyncHandler(
 
     await userRepository.save(user);
 
-    sendTokenResponse(user, 200, res);
+    await sendTokenResponse(user, 200, res);
   }
 );
 
@@ -124,8 +125,20 @@ export const refreshToken = asyncHandler(
       });
 
       if (!user) {
-        return next(new ErrorResponse("Invalid refresh token", 400));
+        return next(new ErrorResponse("User not found", 400));
       }
+
+      const redisClient = await connectRedis();
+
+      const redisRefreshToken = await redisClient.get(`${user.id}`);
+
+      if (refreshToken !== redisRefreshToken) {
+        return next(
+          new ErrorResponse("Invalid refresh token. Token not in store", 401)
+        );
+      }
+
+      await clientClose();
 
       const newAccessToken = generateAccessToken(id);
 
@@ -160,7 +173,11 @@ export const deleteUser = asyncHandler(
 );
 
 // Get token from model, create cookie and send response
-const sendTokenResponse = (user: User, statusCode: number, res: Response) => {
+const sendTokenResponse = async (
+  user: User,
+  statusCode: number,
+  res: Response
+) => {
   // Create token
   const accessToken = generateAccessToken(user.id);
   const refreshToken = generateRefreshToken(user.id);
@@ -173,6 +190,14 @@ const sendTokenResponse = (user: User, statusCode: number, res: Response) => {
   if (process.env.NODE_ENV === "production") {
     options.secure = true;
   }
+
+  const redisClient = await connectRedis();
+
+  await redisClient.set(`${user.id}`, refreshToken, {
+    EX: 60 * 60 * 60 * 24 * 10, // 10 days
+  });
+
+  await clientClose();
 
   res
     .status(statusCode)
