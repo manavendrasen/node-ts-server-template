@@ -38,3 +38,4 @@ typings/
 .env
 .env.test
 src/config/devConfig.env
+src/config/config.env
