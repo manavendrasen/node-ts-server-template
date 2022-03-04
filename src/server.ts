@@ -20,8 +20,7 @@ import authRouter from "./routes/authRoute";
 import userRouter from "./routes/userRoute";
 
 dotenv.config({ path: path.join(__dirname, "config", "config.env") });
-console.log("access ", process.env.ACCESS_TOKEN_SECRET);
-export const config = setConfig(process.env.NODE_ENV || "DEVELOPMENT");
+const config = setConfig(process.env.NODE_ENV || "DEVELOPMENT");
 
 // Connect to Postgres
 connectPostgreSQL();
