@@ -43,9 +43,6 @@ export class User {
   @Column({ type: "boolean", default: true })
   active: boolean;
 
-  @Column({ default: "" })
-  refreshToken: string;
-
   @CreateDateColumn()
   createdAt: Date;
 

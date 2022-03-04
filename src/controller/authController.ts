@@ -5,6 +5,10 @@ import asyncHandler from "../middleware/async";
 import ErrorResponse from "../utils/errorResponse";
 import jwt from "jsonwebtoken";
 import { IUserAuthInfoRequest } from "../middleware/auth";
+import {
+  generateAccessToken,
+  generateRefreshToken,
+} from "../utils/generateToken";
 
 //@desc		Login user
 //@route		POST /api/v1/auth/login
@@ -102,7 +106,6 @@ export const logout = asyncHandler(
 export const refreshToken = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
     const { refreshToken } = req.cookies.refresh_token;
-    console.log("rf", refreshToken);
 
     if (!refreshToken) {
       return next(new ErrorResponse("Please provide a refresh token", 400));
@@ -124,7 +127,20 @@ export const refreshToken = asyncHandler(
         return next(new ErrorResponse("Invalid refresh token", 400));
       }
 
-      sendTokenResponse(user, 200, res);
+      const newAccessToken = generateAccessToken(id);
+
+      const options = {
+        httpOnly: true,
+        secure: false,
+      };
+
+      res
+        .status(200)
+        .cookie("access_token", { accessToken: newAccessToken }, options)
+        .cookie("refresh_token", { refreshToken }, options)
+        .json({
+          success: true,
+        });
     } catch (err) {
       return next(new ErrorResponse("Invalid refresh token", 400));
     }
@@ -146,21 +162,8 @@ export const deleteUser = asyncHandler(
 // Get token from model, create cookie and send response
 const sendTokenResponse = (user: User, statusCode: number, res: Response) => {
   // Create token
-  const accessToken = jwt.sign(
-    { id: user.id },
-    process.env.ACCESS_TOKEN_SECRET!,
-    {
-      expiresIn: 20, // expires in 20 minutes
-    }
-  );
-
-  const refreshToken = jwt.sign(
-    { id: user.id },
-    process.env.REFRESH_TOKEN_SECRET!,
-    {
-      expiresIn: "7d",
-    }
-  );
+  const accessToken = generateAccessToken(user.id);
+  const refreshToken = generateRefreshToken(user.id);
 
   const options = {
     httpOnly: true,
