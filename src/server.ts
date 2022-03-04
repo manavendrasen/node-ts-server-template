@@ -19,7 +19,7 @@ import { AUTH_ROUTE, BASE_ROUTE, USER_ROUTE } from "./constants/routes";
 import authRouter from "./routes/authRoute";
 import userRouter from "./routes/userRoute";
 
-dotenv.config({ path: path.join(__dirname, "config", "devConfig.env") });
+dotenv.config({ path: path.join(__dirname, "config", "config.env") });
 const config = setConfig(process.env.NODE_ENV || "DEVELOPMENT");
 
 // Connect to Postgres
