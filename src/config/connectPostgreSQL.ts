@@ -7,7 +7,7 @@ const connectPostgreSQL = async () => {
     url: process.env.TYPEORM_URL!,
     password: process.env.TYPEORM_PASSWORD!,
     database: process.env.TYPEORM_DATABASE!,
-    entities: process.env.TYPEORM_ENTITIES!.split(","),
+    entities: ["src/entities/*.ts"],
     synchronize: process.env.TYPEORM_SYNCHRONIZE === "true",
     logging: process.env.TYPEORM_LOGGING === "true",
   });
