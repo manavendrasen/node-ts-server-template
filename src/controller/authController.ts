@@ -5,6 +5,10 @@ import asyncHandler from "../middleware/async";
 import ErrorResponse from "../utils/errorResponse";
 import jwt from "jsonwebtoken";
 import { IUserAuthInfoRequest } from "../middleware/auth";
+import {
+  generateAccessToken,
+  generateRefreshToken,
+} from "../utils/generateToken";
 
 //@desc		Login user
 //@route		POST /api/v1/auth/login
@@ -84,11 +88,28 @@ export const getMe = asyncHandler(
 //@route		GET /api/v1/auth/logout
 //@access		Private
 export const logout = asyncHandler(
-  async (req: Request, res: Response, next: NextFunction) => {
-    res.cookie("token", "none", {
-      expires: new Date(Date.now() + 10 * 1000),
+  async (req: IUserAuthInfoRequest, res: Response, next: NextFunction) => {
+    res.cookie("access_token", "none", {
+      expires: new Date(Date.now() + 10 * 1000), // expires in 10 seconds
       httpOnly: true,
     });
+
+    res.cookie("refresh_token", "none", {
+      expires: new Date(Date.now() + 10 * 1000), // expires in 10 seconds
+      httpOnly: true,
+    });
+
+    const userRepository = getRepository(User);
+    const user = await userRepository.findOne({
+      where: { id: req.user?.id },
+    });
+
+    if (!user) {
+      return next(new ErrorResponse("User not found", 404));
+    }
+
+    user.refreshToken = "";
+    userRepository.save(user);
 
     res.status(200).json({
       success: true,
@@ -102,10 +123,9 @@ export const logout = asyncHandler(
 export const refreshToken = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
     const { refreshToken } = req.cookies.refresh_token;
-    console.log("rf", refreshToken);
 
     if (!refreshToken) {
-      return next(new ErrorResponse("Please provide a refresh token", 400));
+      return next(new ErrorResponse("Please provide a refresh token", 401));
     }
 
     try {
@@ -121,12 +141,30 @@ export const refreshToken = asyncHandler(
       });
 
       if (!user) {
-        return next(new ErrorResponse("Invalid refresh token", 400));
+        return next(new ErrorResponse("Invalid User Details", 401));
       }
 
+      if (user.refreshToken !== refreshToken) {
+        return next(new ErrorResponse("Invalid refresh token", 403));
+      }
+
+      const newAccessToken = generateAccessToken(user.id);
+
+      const options = {
+        httpOnly: true,
+        secure: false,
+      };
+
       sendTokenResponse(user, 200, res);
+      return res
+        .status(200)
+        .cookie("access_token", { accessToken: newAccessToken }, options)
+        .cookie("refresh_token", { refreshToken }, options)
+        .json({
+          success: true,
+        });
     } catch (err) {
-      return next(new ErrorResponse("Invalid refresh token", 400));
+      return next(new ErrorResponse("Invalid refresh token", 401));
     }
   }
 );
@@ -146,21 +184,14 @@ export const deleteUser = asyncHandler(
 // Get token from model, create cookie and send response
 const sendTokenResponse = (user: User, statusCode: number, res: Response) => {
   // Create token
-  const accessToken = jwt.sign(
-    { id: user.id },
-    process.env.ACCESS_TOKEN_SECRET!,
-    {
-      expiresIn: 20, // expires in 20 minutes
-    }
-  );
+  const accessToken = generateAccessToken(user.id);
+  const refreshToken = generateRefreshToken(user.id);
 
-  const refreshToken = jwt.sign(
-    { id: user.id },
-    process.env.REFRESH_TOKEN_SECRET!,
-    {
-      expiresIn: "7d",
-    }
-  );
+  const userRepository = getRepository(User);
+  userRepository.save({
+    ...user,
+    refreshToken,
+  });
 
   const options = {
     httpOnly: true,
