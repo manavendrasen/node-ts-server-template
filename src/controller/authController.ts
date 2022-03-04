@@ -89,7 +89,12 @@ export const getMe = asyncHandler(
 //@access		Private
 export const logout = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
-    res.cookie("token", "none", {
+    res.cookie("access_token", "none", {
+      expires: new Date(Date.now() + 10 * 1000),
+      httpOnly: true,
+    });
+
+    res.cookie("refresh_token", "none", {
       expires: new Date(Date.now() + 10 * 1000),
       httpOnly: true,
     });
