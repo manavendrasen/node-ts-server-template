@@ -19,7 +19,7 @@ import * as bcrypt from "bcryptjs";
 @Entity()
 export class User {
   @PrimaryGeneratedColumn("uuid")
-  id: string;
+  id!: string;
 
   @Column({ nullable: false })
   name!: string;
@@ -42,6 +42,9 @@ export class User {
 
   @Column({ type: "boolean", default: true })
   active: boolean;
+
+  @Column({ default: "" })
+  refreshToken: string;
 
   @CreateDateColumn()
   createdAt: Date;

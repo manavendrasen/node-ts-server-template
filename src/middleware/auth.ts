@@ -29,9 +29,7 @@ export const protect = asyncHandler(
     }
 
     if (!token) {
-      return next(
-        new ErrorResponse("Not authorized to access this route", 401)
-      );
+      return next(new ErrorResponse("Invalid Token", 401));
     }
 
     const userRepository = getRepository(User);
@@ -47,7 +45,7 @@ export const protect = asyncHandler(
       next();
     } catch (err: any) {
       return next(
-        new ErrorResponse(`User is not authorized to access this route`, 403)
+        new ErrorResponse("User is not authorized to access this route", 403)
       );
     }
   }
